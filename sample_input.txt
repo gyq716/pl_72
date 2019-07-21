@@ -1,0 +1,4 @@
+Dataset/train2014/COCO_train2014_000000480023.jpg 1
+Dataset/train2014/COCO_train2014_000000050518.jpg 2
+Dataset/train2014/COCO_train2014_000000142589.jpg 3
+Dataset/train2014/COCO_train2014_000000209263.jpg 4
