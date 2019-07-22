@@ -6,6 +6,7 @@ import keras_resnet.models
 from keras_retinanet.models import retinanet_vocab_w2v as retinanet # retinanet_vocab_glo
 import os
 import json
+import h5py
 def format_img_size(img):
     """ formats the image size based on config """
     img_min_side = float(600)
@@ -58,7 +59,7 @@ for idx in range(int(len(wordname_lines)) - 1):
 inputs = keras.layers.Input(shape=(None, None, 3))
 resnet = keras_resnet.models.ResNet50(inputs, include_top=False, freeze_bn=True)
 model = retinanet.retinanet_bbox(inputs=inputs, num_classes=num_seen, backbone=resnet)
-model.load_weights('Model/resnet50_csv_45.h5')
+model.load_weights('Model/resnet50_csv_50.h5')
 
 dic_coco = json.load(open('dic_coco.json', 'r'))
 image_dir = 'Dataset/'
@@ -69,6 +70,15 @@ detect_type = 'seen_detection' # gzsd or zsd or seen_detection
 seen_threshold = .4
 unseen_threshold = .1
 
+all_detections_with_label = np.zeros((123287, 100, 6), dtype='float32')
+nms_num = np.zeros(123287, dtype='float32')
+class_map_file = open('MSCOCO/class_map.csv').read().split('\r\n')
+class_map = {}
+for idx in range(int(len(class_map_file)) - 1):
+    before = class_map_file[idx].split(',')[0]
+    after = class_map_file[idx].split(',')[1]
+    class_map[int(before)] = int(after)
+
 # for idx in range(int(len(lines))-1):
 # for idx in range(len(dic_coco['images']) - 1):
 for idx, im in enumerate(dic_coco['images']):
@@ -77,6 +87,8 @@ for idx, im in enumerate(dic_coco['images']):
     # filepath = aline[0]
     filepath = os.path.join(image_dir, im['file_path'])
     im_id = im['id']
+    if idx % 1000 == 0:
+        print(idx)
 
     # print('{}/{}'.format((idx+1), len(lines) - 1))
 
@@ -106,7 +118,7 @@ for idx, im in enumerate(dic_coco['images']):
     indices_seen = np.where(scores > seen_threshold)
 
 
-    T = 25
+    T = 50
     mask = np.ones_like(scores,dtype='float32')
     mask[:, T:] = 0.0
     sorted_score = -np.sort(-scores, axis=1)
@@ -156,6 +168,18 @@ for idx, im in enumerate(dic_coco['images']):
     image_scores = np.expand_dims(scores[indices[0][scores_sort], indices[1][scores_sort]], axis=1)
     image_detections = np.append(image_boxes, image_scores, axis=1)
     image_predicted_labels = indices[1][scores_sort]
+    image_predicted_labels_copy = image_predicted_labels.copy()
+    # print("label_before:{}".format(image_predicted_labels))
+
+    for i in range(len(image_predicted_labels_copy)):
+        image_predicted_labels_copy[i] = class_map[image_predicted_labels_copy[i]]
+    # print("label_after:{}".format(image_predicted_labels_copy))
+    image_labels = np.expand_dims(image_predicted_labels_copy, axis=1)
+    image_with_labels = np.append(image_boxes, image_labels, axis=1)
+    image_boxes_labels = np.append(image_with_labels, image_scores, axis=1)
+    # print("image_boxes_labels:{}".format(image_boxes_labels))
+    all_detections_with_label[idx, :image_boxes_labels.shape[0], :] = image_boxes_labels
+    nms_num[idx] = image_boxes_labels.shape[0]
 
 
     for i in range(0, image_predicted_labels.shape[0], 1):
@@ -168,10 +192,10 @@ for idx, im in enumerate(dic_coco['images']):
         textLabel = '{}: {}'.format(class_mapping[image_predicted_labels[i]], int(100*image_scores[i]))
 
         if image_predicted_labels[i] < num_seen:
-            print( '  seen--' + textLabel)
+            # print( '  seen--' + textLabel)
             cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2), (0, 255, 255), 2)
         else:
-            print( 'unseen--' + textLabel)
+            # print( 'unseen--' + textLabel)
             cv2.rectangle(img, (real_x1, real_y1), (real_x2, real_y2), (255, 0, 255), 2)
 
         (retval, baseLine) = cv2.getTextSize(textLabel, cv2.FONT_HERSHEY_COMPLEX, 1, 1)
@@ -188,5 +212,8 @@ for idx, im in enumerate(dic_coco['images']):
         cv2.imshow('img', img)
         cv2.waitKey(0)
         
-    cv2.imwrite('Dataset/images/{}.jpg'.format(im_id), img)
+    cv2.imwrite('result/{}.jpg'.format(im_id), img)
+with h5py.File("detection_seen4_unseen1.h5") as f:
+    f['dets_labels'] = all_detections_with_label
+    f['nms_num'] = nms_num
     # cv2.imwrite('Dataset/Sampleoutput', img)

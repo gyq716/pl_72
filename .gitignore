@@ -2,4 +2,6 @@ Dataset/
 *.pyc
 result
 MSCOCO
+.idea/
+Model/
 

@@ -95,7 +95,7 @@ def parse_args(args):
                         default=0.5, type=float)
     parser.add_argument('--max-detections', help='Max Detections per image (defaults to 100).', default=10, type=int)
     parser.add_argument('--wordvector', help='Word vectors', default='word_w2v', type=str)
-    parser.add_argument('--top', help='Top seen word vectors', default=5, type=int)
+    parser.add_argument('--top', help='Top seen word vectors', default=50, type=int)
     parser.add_argument('--save-path', help='Path for saving images with detections.')
 
     return parser.parse_args(args)
