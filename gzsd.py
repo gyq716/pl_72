@@ -7,6 +7,9 @@ from keras_retinanet.models import retinanet_vocab_w2v as retinanet # retinanet_
 import os
 import json
 import h5py
+import argparse
+
+
 def format_img_size(img):
     """ formats the image size based on config """
     img_min_side = float(600)
@@ -45,6 +48,10 @@ def format_img(img):
     img = format_img_channels(img)
     return img, ratio
 
+parser = argparse.ArgumentParser(description='plzsd_arguement')
+parser.add_argument('--begin_num', help='begin_num', type=int, default=0)
+parser.add_argument('--end_num', help='end_num', type=int, default=123287)
+parser = parser.parse_args()
 num_seen = 72
 word = np.loadtxt('MSCOCO/word_w2v_new.txt', dtype='float32', delimiter=',')
 word_seen = word[:,:num_seen]
@@ -81,10 +88,12 @@ for idx in range(int(len(class_map_file)) - 1):
 
 # for idx in range(int(len(lines))-1):
 # for idx in range(len(dic_coco['images']) - 1):
-for idx, im in enumerate(dic_coco['images']):
+# for idx, im in enumerate(dic_coco['images']):
+for idx in range(parser.begin_num, parser.end_num):
     # aline = lines[idx].split(" ")
     # im_id = aline[1]
     # filepath = aline[0]
+    im = dic_coco['images'][idx]
     filepath = os.path.join(image_dir, im['file_path'])
     im_id = im['id']
     if idx % 1000 == 0:
@@ -213,7 +222,7 @@ for idx, im in enumerate(dic_coco['images']):
         cv2.waitKey(0)
         
     cv2.imwrite('result/{}.jpg'.format(im_id), img)
-with h5py.File("detection_seen4_unseen1.h5") as f:
+with h5py.File("detection_seen4_unseen1_{}.h5".format(parser.end_num)) as f:
     f['dets_labels'] = all_detections_with_label
     f['nms_num'] = nms_num
     # cv2.imwrite('Dataset/Sampleoutput', img)
